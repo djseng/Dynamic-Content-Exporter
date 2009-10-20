@@ -1,7 +1,0 @@
-D:\git-workspaces\Dynamic-Content-Exporter\ContentExporter\ContentExporter\obj\Debug\ResolveAssemblyReference.cache
-D:\git-workspaces\Dynamic-Content-Exporter\ContentExporter\ContentExporter\bin\Debug\ContentExporter.dll
-D:\git-workspaces\Dynamic-Content-Exporter\ContentExporter\ContentExporter\bin\Debug\ContentExporter.pdb
-D:\git-workspaces\Dynamic-Content-Exporter\ContentExporter\ContentExporter\bin\Debug\HtmlAgilityPack.dll
-D:\git-workspaces\Dynamic-Content-Exporter\ContentExporter\ContentExporter\bin\Debug\ICSharpCode.SharpZipLib.dll
-D:\git-workspaces\Dynamic-Content-Exporter\ContentExporter\ContentExporter\obj\Debug\ContentExporter.dll
-D:\git-workspaces\Dynamic-Content-Exporter\ContentExporter\ContentExporter\obj\Debug\ContentExporter.pdb

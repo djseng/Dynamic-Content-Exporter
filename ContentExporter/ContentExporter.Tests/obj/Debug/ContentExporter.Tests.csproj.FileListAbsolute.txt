@@ -1,5 +1,0 @@
-D:\git-workspaces\Dynamic-Content-Exporter\ContentExporter\ContentExporter.Tests\bin\Debug\ContentExporter.Tests.dll
-D:\git-workspaces\Dynamic-Content-Exporter\ContentExporter\ContentExporter.Tests\bin\Debug\ContentExporter.Tests.pdb
-D:\git-workspaces\Dynamic-Content-Exporter\ContentExporter\ContentExporter.Tests\obj\Debug\ResolveAssemblyReference.cache
-D:\git-workspaces\Dynamic-Content-Exporter\ContentExporter\ContentExporter.Tests\obj\Debug\ContentExporter.Tests.dll
-D:\git-workspaces\Dynamic-Content-Exporter\ContentExporter\ContentExporter.Tests\obj\Debug\ContentExporter.Tests.pdb
