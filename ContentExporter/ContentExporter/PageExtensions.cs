@@ -4,16 +4,17 @@
     using System.Collections;
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
-    using System.Configuration;
     using System.IO;
     using System.Linq;
     using System.Net;
+    using System.Text;
     using System.Web;
     using System.Web.Security;
     using System.Web.UI;
 
     using HtmlAgilityPack;
 
+    using ICSharpCode.SharpZipLib.Core;
     using ICSharpCode.SharpZipLib.Zip;
 
     public static class PageExtensions
@@ -23,16 +24,22 @@
             page.Response.Clear();
             page.Response.ContentType = "application/zip";
             page.Response.AddHeader("Content-Disposition", "attachment;filename=archive.zip");
+            page.Response.BufferOutput = false;
+            page.Response.ContentEncoding = Encoding.Default;
+            page.Response.Charset = string.Empty;
 
             page.ExportContent(page.Response.OutputStream);
-
-            page.Response.End();
         }
 
-        public static void ExportContent(this Page page, Stream x)
+        public static void ExportContent(this Page page, Stream destination)
         {
-            using (var zippedStream = new ZipOutputStream(new ZeroByteStreamWrapper(x)))
+            var fileName = Path.GetTempFileName();
+
+            using (var zippedStream = new ZipOutputStream(File.OpenWrite(fileName)))
             {
+                zippedStream.UseZip64 = UseZip64.Off;
+                zippedStream.SetLevel(9);
+
                 var assets = new Assets();
 
                 ExportDocument(page, zippedStream, assets);
@@ -40,6 +47,13 @@
 
                 zippedStream.Finish();
             }
+
+            using (var source = File.OpenRead(fileName))
+            {
+                StreamUtils.Copy(source, destination, new byte[32 * 1024]);
+            }
+
+            File.Delete(fileName);
         }
 
         private static string GetApplicationRoot(HttpRequest request)
@@ -48,7 +62,7 @@
 
             if (request.Url.Port != 80 && request.Url.Port != 443)
             {
-                currentDomain += (":" + request.Url.Port);
+                currentDomain += ":" + request.Url.Port;
             }
 
             return currentDomain;
@@ -71,6 +85,8 @@
 
         private static void PutEntries<T>(ZipOutputStream destination, IEnumerable<T> items, Func<T, string> pathSelector, Func<T, Stream> streamSelector)
         {
+            var buffer = new byte[32 * 1024];
+
             foreach (var item in items)
             {
                 var entry = new ZipEntry(pathSelector(item));
@@ -79,19 +95,8 @@
 
                 using (var source = streamSelector(item))
                 {
-                    CopyStream(source, destination);
+                    StreamUtils.Copy(source, destination, buffer);
                 }
-            }
-        }
-
-        private static void CopyStream(Stream source, Stream destination)
-        {
-            var buffer = new byte[32 * 1024];
-            int read;
-
-            while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
-            {
-                destination.Write(buffer, 0, read);
             }
         }
 
@@ -102,9 +107,11 @@
             stream.PutNextEntry(entry);
 
             var document = GetNormalizedDocument(page, assets);
+
             var writer = new StreamWriter(stream);
 
             writer.Write(document);
+
             writer.Flush();
         }
 
@@ -165,6 +172,8 @@
 
             var appRoot = GetApplicationRoot(page.Request);
 
+            var buffer = new byte[32 * 1024];
+
             foreach (var item in assets)
             {
                 var request = (HttpWebRequest)WebRequest.Create(appRoot + item.Path);
@@ -182,114 +191,11 @@
 
                 using (var responseStream = response.GetResponseStream())
                 {
-                    CopyStream(responseStream, item.Stream);
+                    StreamUtils.Copy(responseStream, item.Stream, buffer);
                 }
 
                 item.Stream.Position = 0;
             }
-        }
-
-
-
-        internal class ZeroByteStreamWrapper : Stream
-        {
-            #region Constants and Fields
-
-            private readonly Stream wrappedStream;
-
-            #endregion
-
-            #region Constructors and Destructors
-
-            public ZeroByteStreamWrapper(Stream wrappedStream)
-            {
-                this.wrappedStream = wrappedStream;
-            }
-
-            #endregion
-
-            #region Properties
-
-            public override bool CanRead
-            {
-                get
-                {
-                    return this.wrappedStream.CanRead;
-                }
-            }
-
-            public override bool CanSeek
-            {
-                get
-                {
-                    return this.wrappedStream.CanSeek;
-                }
-            }
-
-            public override bool CanWrite
-            {
-                get
-                {
-                    return this.wrappedStream.CanWrite;
-                }
-            }
-
-            public override long Length
-            {
-                get
-                {
-                    return this.wrappedStream.Length;
-                }
-            }
-
-            public override long Position
-            {
-                get
-                {
-                    return this.wrappedStream.Position;
-                }
-
-                set
-                {
-                    this.wrappedStream.Position = value;
-                }
-            }
-
-            #endregion
-
-            #region Public Methods
-
-            public override void Flush()
-            {
-                this.wrappedStream.Flush();
-            }
-
-            public override int Read(byte[] buffer, int offset, int count)
-            {
-                return this.wrappedStream.Read(buffer, offset, count);
-            }
-
-            public override long Seek(long offset, SeekOrigin origin)
-            {
-                return this.wrappedStream.Seek(offset, origin);
-            }
-
-            public override void SetLength(long value)
-            {
-                this.wrappedStream.SetLength(value);
-            }
-
-            public override void Write(byte[] buffer, int offset, int count)
-            {
-                if (buffer.Length == 0)
-                {
-                    return;
-                }
-
-                this.wrappedStream.Write(buffer, offset, count);
-            }
-
-            #endregion
         }
 
         internal class Assets
@@ -323,11 +229,11 @@
         internal class DynamicAsset
         {
             private static Dictionary<string, string> ContentTypeExtensionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "image/png", "png" },
-                { "image/gif", "gif" },
-                { "text/html", "html" }
-            };
+                {
+                    { "image/png", "png" },
+                    { "image/gif", "gif" },
+                    { "text/html", "html" }
+                };
 
             public DynamicAsset(string path)
             {
